@@ -1,0 +1,14 @@
+inputSet:
+  name: Build_sarunay_harness_practice_1789716421880-pr-trigger-input-set
+  identifier: Build_sarunay_harness_practice_1789716421880prtriggerinputset
+  orgIdentifier: default
+  projectIdentifier: default_project
+  pipeline:
+    identifier: Build_sarunay_harness_practice_1789716421880
+    properties:
+      ci:
+        codebase:
+          build:
+            type: PR
+            spec:
+              number: <+trigger.prNumber>
