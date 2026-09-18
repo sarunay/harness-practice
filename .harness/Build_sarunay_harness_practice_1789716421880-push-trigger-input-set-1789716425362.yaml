@@ -1,0 +1,14 @@
+inputSet:
+  name: Build_sarunay_harness_practice_1789716421880-push-trigger-input-set
+  identifier: Build_sarunay_harness_practice_1789716421880pushtriggerinputset
+  orgIdentifier: default
+  projectIdentifier: default_project
+  pipeline:
+    identifier: Build_sarunay_harness_practice_1789716421880
+    properties:
+      ci:
+        codebase:
+          build:
+            type: branch
+            spec:
+              branch: <+trigger.branch>
