@@ -1,0 +1,22 @@
+pipeline:
+  name: test-nodejs-template
+  identifier: testnodejstemplate
+  tags: {}
+  template:
+    templateRef: nodejscitemplate
+    versionLabel: v2.000
+    templateInputs:
+      variables:
+        - name: IMAGE_REPO
+          type: String
+          value: <+input>
+        - name: NODE_VERSION
+          type: String
+          value: <+input>
+      properties:
+        ci:
+          codebase:
+            connectorRef: <+input>
+            build: <+input>
+  projectIdentifier: default_project
+  orgIdentifier: default
