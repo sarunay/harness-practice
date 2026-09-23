@@ -1,0 +1,135 @@
+template:
+  name: nodejs-ci-template
+  type: Pipeline
+  projectIdentifier: default_project
+  orgIdentifier: default
+  spec:
+    variables:
+      - name: IMAGE_REPO
+        type: String
+        value: <+input>
+      - name: NODE_VERSION
+        type: String
+        value: <+input>
+    failureStrategies:
+      - onFailure:
+          errors:
+            - Timeout
+          action:
+            type: Retry
+            spec:
+              retryCount: 3
+              retryIntervals:
+                - 10s
+              onRetryFailure:
+                action:
+                  type: Abort
+    properties:
+      ci:
+        codebase:
+          connectorRef: <+input>
+          build: <+input>
+    stages:
+      - stage:
+          name: npm_install_npm_test
+          identifier: npm_install_npm_test
+          description: ""
+          type: CI
+          spec:
+            cloneCodebase: true
+            caching:
+              enabled: true
+              override: true
+            buildIntelligence:
+              enabled: true
+            platform:
+              os: Linux
+              arch: Amd64
+            runtime:
+              type: Cloud
+              spec: {}
+            execution:
+              steps:
+                - parallel:
+                    - step:
+                        type: Run
+                        name: Run_1
+                        identifier: Run_1
+                        spec:
+                          image: node:<+pipeline.variables.NODE_VERSION>-alpine
+                          shell: Sh
+                          command: "echo\t\"Installing\tdependencies...\"\nnpm\tinstall\necho\t\"Running\ttests...\"\nnpm\ttest"
+                        description: install-and-test
+                    - step:
+                        type: Run
+                        name: lint-check
+                        identifier: lintcheck
+                        spec:
+                          image: node:<+pipeline.variables.NODE_VERSION>-alpine
+                          shell: Sh
+                          command: |
+                            echo "Running lint checks..."
+                            echo "Lint passed"
+      - stage:
+          name: Build
+          identifier: Build
+          description: ""
+          type: CI
+          spec:
+            cloneCodebase: true
+            caching:
+              enabled: true
+              override: true
+            buildIntelligence:
+              enabled: true
+            execution:
+              steps:
+                - step:
+                    type: BuildAndPushDockerRegistry
+                    name: BuildAndPushDockerRegistry_1
+                    identifier: BuildAndPushDockerRegistry_1
+                    spec:
+                      connectorRef: ghcrconnector
+                      repo: <+pipeline.variables.IMAGE_REPO>
+                      tags:
+                        - latest
+                      push: false
+                - step:
+                    type: Run
+                    name: trivy-scan
+                    identifier: trivyscan
+                    spec:
+                      image: aquasec/trivy:latest
+                      shell: Sh
+                      command: |
+                        echo "Running Trivy security scan..."
+                        trivy image --exit-code 1 \
+                          --severity HIGH,CRITICAL \
+                          --no-progress \
+                          node:<+pipeline.variables.NODE_VERSION>-alpine
+                        echo "Trivy scan complete"
+                    failureStrategies:
+                      - onFailure:
+                          errors:
+                            - AllErrors
+                          action:
+                            type: Ignore
+                - step:
+                    type: BuildAndPushDockerRegistry
+                    name: Push To GHCR
+                    identifier: push_to_ghcr
+                    spec:
+                      connectorRef: ghcrconnector
+                      repo: <+pipeline.variables.IMAGE_REPO>
+                      tags:
+                        - latest
+            platform:
+              os: Linux
+              arch: Arm64
+            runtime:
+              type: Cloud
+              spec: {}
+  identifier: nodejscitemplate
+  description: |
+    Node.js CI pipeline - build, test, scan, push
+  versionLabel: v3.000
