@@ -1,0 +1,226 @@
+pipeline:
+  name: my-first-ci
+  identifier: myfirstci
+  projectIdentifier: default_project
+  orgIdentifier: default
+  tags: {}
+  variables:
+    - name: IMAGE_REPO
+      type: String
+      value: <+input>
+    - name: NODE_VERSION
+      type: String
+      value: <+input>
+    - name: BUILD_DOCKER
+      type: String
+      value: <+input>
+  failureStrategies:
+    - onFailure:
+        errors:
+          - Timeout
+        action:
+          type: Retry
+          spec:
+            retryCount: 2
+            retryIntervals:
+              - 10s
+            onRetryFailure:
+              action:
+                type: Abort
+  properties:
+    ci:
+      codebase:
+        connectorRef: <+input>
+        build: <+input>
+  stages:
+    - stage:
+        name: npm_install_npm_test
+        identifier: npm_install_npm_test
+        description: ""
+        type: CI
+        spec:
+          cloneCodebase: true
+          caching:
+            enabled: true
+            override: true
+          buildIntelligence:
+            enabled: true
+          platform:
+            os: Linux
+            arch: Amd64
+          runtime:
+            type: Cloud
+            spec: {}
+          execution:
+            steps:
+              - stepGroup:
+                  name: Node Validation
+                  identifier: node_validation
+                  variables:
+                    - name: NODE_VERSION
+                      type: String
+                      value: <+pipeline.variables.NODE_VERSION>
+                  steps:
+                    - parallel:
+                        - step:
+                            type: Run
+                            name: Run_1
+                            identifier: Run_1
+                            strategy:
+                              matrix:
+                                node_version:
+                                  - "20"
+                                  - "22"
+                            spec:
+                              image: node:<+matrix.node_version>-alpine
+                              shell: Sh
+                              command: "echo\t\"Installing\tdependencies...\"\nnpm\tinstall\necho\t\"Running\ttests...\"\nnpm\ttest"
+                            description: install-and-test
+                        - step:
+                            type: Run
+                            name: lint-check
+                            identifier: lintcheck
+                            spec:
+                              image: node:<+stepGroup.variables.NODE_VERSION>-alpine
+                              shell: Sh
+                              command: |
+                                echo "Running lint checks..."
+                                echo "Lint passed"
+    - stage:
+        name: Approve Docker Build
+        identifier: Approve_Docker_Build
+        description: ""
+        type: Approval
+        spec:
+          execution:
+            steps:
+              - step:
+                  name: Review Build
+                  identifier: Review_Build
+                  type: HarnessApproval
+                  timeout: 1d
+                  spec:
+                    approvalMessage: Validate the Node build and approve Docker build
+                    includePipelineExecutionHistory: true
+                    approvers:
+                      minimumCount: 1
+                      disallowPipelineExecutor: false
+                      userGroups:
+                        - _project_all_users
+                    isAutoRejectEnabled: false
+                    approverInputs: []
+        tags: {}
+    - stage:
+        name: Build
+        identifier: Build
+        when:
+          pipelineStatus: Success
+          condition: <+pipeline.variables.BUILD_DOCKER> == "true"
+        description: ""
+        type: CI
+        spec:
+          cloneCodebase: true
+          caching:
+            enabled: true
+            override: true
+          buildIntelligence:
+            enabled: true
+          execution:
+            steps:
+              - step:
+                  type: Run
+                  name: Verify Secret Reference
+                  identifier: verify_secret_reference
+                  spec:
+                    shell: Sh
+                    image: alpine:latest
+                    envVariables:
+                      DEMO_API_TOKEN: <+secrets.getValue("demo_api_token")>
+                    command: |
+                      if [ -n "$DEMO_API_TOKEN" ]; then
+                      echo "Secret resolved successfully"
+                      else
+                      echo "Secret was not resolved"
+                      exit 1
+                      fi
+              - step:
+                  type: BuildAndPushDockerRegistry
+                  name: BuildAndPushDockerRegistry_1
+                  identifier: BuildAndPushDockerRegistry_1
+                  spec:
+                    connectorRef: ghcrconnector
+                    repo: <+pipeline.variables.IMAGE_REPO>
+                    tags:
+                      - latest
+                    push: false
+              - step:
+                  type: Run
+                  name: trivy-scan
+                  identifier: trivyscan
+                  spec:
+                    image: aquasec/trivy:latest
+                    shell: Sh
+                    command: |
+                      echo "Running Trivy security scan..."
+                      trivy image --exit-code 1 \
+                        --severity HIGH,CRITICAL \
+                        --no-progress \
+                        node:<+pipeline.variables.NODE_VERSION>-alpine
+                      echo "Trivy scan complete"
+                  failureStrategies:
+                    - onFailure:
+                        errors:
+                          - AllErrors
+                        action:
+                          type: Ignore
+              - step:
+                  type: BuildAndPushDockerRegistry
+                  name: Push To GHCR
+                  identifier: push_to_ghcr
+                  spec:
+                    connectorRef: ghcrconnector
+                    repo: <+pipeline.variables.IMAGE_REPO>
+                    tags:
+                      - latest
+              - step:
+                  type: Run
+                  name: Generate Image Tag
+                  identifier: generate_image_tag
+                  spec:
+                    shell: Sh
+                    image: alpine:latest
+                    command: |
+                      export GENERATED_IMAGE_TAG="build-<+pipeline.sequenceId>"
+                      echo "Generated tag: $GENERATED_IMAGE_TAG"
+                    outputVariables:
+                      - name: GENERATED_IMAGE_TAG
+                        type: String
+                        value: GENERATED_IMAGE_TAG
+              - step:
+                  type: Run
+                  name: Show Generated Tag
+                  identifier: show_generated_tag
+                  spec:
+                    shell: Sh
+                    image: alpine:latest
+                    command: |
+                      echo "Tag from earlier step:"
+                      echo "<+execution.steps.generate_image_tag.output.outputVariables.GENERATED_IMAGE_TAG>"
+          platform:
+            os: Linux
+            arch: Arm64
+          runtime:
+            type: Cloud
+            spec: {}
+  notificationRules:
+    - name: node-harness-notification-demo
+      identifier: nodeharnessnotificationdemo
+      pipelineEvents:
+        - type: PipelineFailed
+      notificationMethod:
+        type: Email
+        spec:
+          userGroups: []
+          recipients:
+            - sarunay.patel@accenture.com
+      enabled: true
