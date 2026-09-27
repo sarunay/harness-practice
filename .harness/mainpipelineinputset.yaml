@@ -1,0 +1,25 @@
+inputSet:
+  pipeline:
+    identifier: myfirstci
+    variables:
+      - name: IMAGE_REPO
+        type: String
+        value: ghcr.io/sarunay/harness-practice
+      - name: NODE_VERSION
+        type: String
+        value: "22"
+      - name: BUILD_DOCKER
+        type: String
+        value: "true"
+    properties:
+      ci:
+        codebase:
+          connectorRef: githubpoc
+          build:
+            spec:
+              branch: main
+            type: branch
+  name: main-pipeline-inputset
+  identifier: mainpipelineinputset
+  orgIdentifier: default
+  projectIdentifier: default_project
