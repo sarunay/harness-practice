@@ -74,7 +74,13 @@ pipeline:
                             spec:
                               image: node:<+matrix.node_version>-alpine
                               shell: Sh
-                              command: "echo\t\"Installing\tdependencies...\"\nnpm\tinstall\necho\t\"Running\ttests...\"\nnpm\ttest"
+                              command: |
+                                echo "Cleaning up cached modules..."
+                                rm -rf node_modules package-lock.json
+                                echo "Installing dependencies..."
+                                npm install
+                                echo "Running tests..."
+                                npm test
                             description: install-and-test
                         - step:
                             type: Run
