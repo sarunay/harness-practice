@@ -5,8 +5,8 @@
     "lodash": "^4.17.21"
   },
   "devDependencies": {
-    "jest": "latest",
-    "jest-junit": "latest"
+    "jest": "^29.7.0",
+    "jest-junit": "^16.0.0"
   },
   "scripts": {
     "test": "jest --ci --reporters=default --reporters=jest-junit",
