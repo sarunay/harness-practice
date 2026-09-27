@@ -86,6 +86,19 @@ pipeline:
                               command: |
                                 echo "Running lint checks..."
                                 echo "Lint passed"
+                        - step:
+                            type: Run
+                            name: Run Tests
+                            identifier: run_tests
+                            spec:
+                              shell: Sh
+                              image: node:<+stepGroup.variables.NODE_VERSION>-alpine
+                              command: npm test
+                              reports:
+                                type: JUnit
+                                spec:
+                                  paths:
+                                    - test-results/junit.xml
     - stage:
         name: Approve Docker Build
         identifier: Approve_Docker_Build
