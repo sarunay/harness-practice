@@ -76,9 +76,9 @@ pipeline:
                               shell: Sh
                               command: |
                                 echo "Cleaning up cached modules..."
-                                rm -rf node_modules package-lock.json
+                                rm -rf node_modules
                                 echo "Installing dependencies..."
-                                npm install
+                                npm ci
                                 echo "Running tests..."
                                 npm test
                             description: install-and-test
