@@ -78,7 +78,7 @@ pipeline:
                                 echo "Cleaning up cached modules..."
                                 rm -rf node_modules
                                 echo "Installing dependencies..."
-                                npm ci
+                                npm install
                                 echo "Running tests..."
                                 npm test
                             description: install-and-test
